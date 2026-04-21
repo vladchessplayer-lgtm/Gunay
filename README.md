@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Подарок для Гюнай</title>
     <style>
         * {
@@ -111,7 +111,6 @@
             box-shadow: 0 0 20px rgba(255,255,255,0.2);
             width: 100%;
             height: auto;
-            cursor: pointer;
             touch-action: none;
         }
         .game-info {
@@ -131,14 +130,14 @@
         .ctrl-btn {
             background: #333;
             color: white;
-            font-size: 32px;
+            font-size: 40px;
             font-weight: bold;
-            padding: 10px 30px;
+            padding: 15px 30px;
             border-radius: 60px;
             cursor: pointer;
             transition: 0.2s;
             touch-action: manipulation;
-            min-width: 80px;
+            min-width: 100px;
         }
         .ctrl-btn:active {
             background: #ff9800;
@@ -147,31 +146,22 @@
         .reset-game {
             background-color: #444;
             margin-top: 15px;
-            padding: 8px 20px;
+            padding: 12px 24px;
+            font-size: 18px;
         }
         .win-message, .lose-message {
             font-size: 20px;
             margin-top: 20px;
-            animation: pulse 1s infinite;
-        }
-        .lose-message {
-            color: #ff6666;
-            animation: none;
-        }
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); text-shadow: 0 0 10px #ffaa33; }
-            100% { transform: scale(1); }
         }
         .current-word {
-            font-size: 24px;
+            font-size: 28px;
             margin-bottom: 10px;
             background: rgba(0,0,0,0.6);
             display: inline-block;
-            padding: 8px 16px;
+            padding: 10px 20px;
             border-radius: 60px;
         }
-        /* Финальный экран */
+        /* Финальный экран (победа/поражение) */
         .final-screen {
             background: rgba(0,0,0,0.95);
             border-radius: 60px;
@@ -195,9 +185,16 @@
             font-size: 48px;
             letter-spacing: 10px;
         }
+        .final-screen.lose {
+            border-color: #ff6666;
+            box-shadow: 0 0 50px rgba(255,102,102,0.5);
+        }
+        .final-screen.lose h2 {
+            color: #ff8888;
+        }
         @media (max-width: 600px) {
-            .ctrl-btn { font-size: 28px; padding: 8px 20px; min-width: 70px; }
-            .current-word { font-size: 20px; }
+            .ctrl-btn { font-size: 36px; padding: 12px 20px; min-width: 80px; }
+            .current-word { font-size: 24px; }
             .game-info { font-size: 14px; }
             .container { padding: 15px; }
             .final-screen h2 { font-size: 28px; }
@@ -222,9 +219,9 @@
     <h1>✨ Собери слово ✨</h1>
     <div id="gameplayArea">
         <div class="current-word" id="currentWordDisplay">Ты ...</div>
-        <canvas id="gameCanvas" width="700" height="400" style="width:100%; height:auto; max-width:700px; aspect-ratio:700/400;"></canvas>
+        <canvas id="gameCanvas" style="width:100%; height:auto; background:#111; border-radius:20px;"></canvas>
         <div class="game-info">
-            <span>🔤 Собрано букв: <span id="collectedCount">0</span> / <span id="totalCount">0</span></span>
+            <span>🔤 Собрано: <span id="collectedCount">0</span> / <span id="totalCount">0</span></span>
             <span>📖 Слово <span id="wordIndex">1</span> / <span id="totalWords">5</span></span>
         </div>
         <div class="controls">
@@ -238,7 +235,7 @@
 </div>
 
 <script>
-    // ----- ЗВЁЗДЫ -----
+    // ЗВЁЗДЫ
     function createStars() {
         const container = document.getElementById('starsContainer');
         for (let i = 0; i < 150; i++) {
@@ -255,7 +252,7 @@
     }
     createStars();
 
-    // ----- ПАРОЛЬ -----
+    // ПАРОЛЬ
     let hintTimer;
     const correctPassword = "Гюнай";
 
@@ -278,7 +275,7 @@
     }
     startHintTimer();
 
-    // ----- ИГРА -----
+    // ИГРА С АДАПТАЦИЕЙ ПОД ТЕЛЕФОН
     const adjectives = ["Добрая", "Щедрая", "Честная", "Красивая", "Заботливая"];
     let currentWordIndex = 0;
     let currentWord = adjectives[currentWordIndex];
@@ -287,41 +284,95 @@
     let collectedLetters = [];
     let gameRunning = true;
     let animationId = null;
-
     let fallingLetters = [];
     let frame = 0;
     const SPAWN_DELAY = 45;
 
-    let canvas = document.getElementById('gameCanvas');
-    let ctx = canvas.getContext('2d');
-    
-    let heroX = 350;
-    const HERO_WIDTH = 40;
-    const HERO_HEIGHT = 30;
-    const HERO_Y = 350;
-    
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Динамические размеры canvas под экран
+    let canvasWidth = 0;
+    let canvasHeight = 0;
+    // Параметры героя (будут пересчитываться при resize)
+    let heroX = 0;
+    let heroWidth = 0;
+    let heroHeight = 0;
+    let heroY = 0;
+    let heroSpeed = 0;
+    // Размер букв и шаров
+    let ballRadius = 0;
+    let letterFontSize = 0;
+    let infoFontSize = 0;
+
     let leftPressed = false;
     let rightPressed = false;
-    const HERO_SPEED = 7;
-    
-    let collectedSpan = document.getElementById('collectedCount');
-    let totalSpan = document.getElementById('totalCount');
-    let wordIndexSpan = document.getElementById('wordIndex');
-    let totalWordsSpan = document.getElementById('totalWords');
-    let currentWordDisplay = document.getElementById('currentWordDisplay');
-    let messageArea = document.getElementById('messageArea');
-    
+
+    // UI элементы
+    const collectedSpan = document.getElementById('collectedCount');
+    const totalSpan = document.getElementById('totalCount');
+    const wordIndexSpan = document.getElementById('wordIndex');
+    const totalWordsSpan = document.getElementById('totalWords');
+    const currentWordDisplay = document.getElementById('currentWordDisplay');
+    const messageArea = document.getElementById('messageArea');
     totalWordsSpan.innerText = adjectives.length;
-    
+
     function updateUI() {
         collectedSpan.innerText = collectedLetters.length;
         totalSpan.innerText = currentLetters.length;
         wordIndexSpan.innerText = currentWordIndex + 1;
         currentWordDisplay.innerHTML = `Ты ... ${currentWord}`;
     }
-    
-    function showFinalScreen() {
-        // скрываем игровую область, показываем финальный экран
+
+    // Пересчёт размеров canvas и игровых объектов
+    function resizeCanvas() {
+        // Получаем доступную ширину контейнера
+        const container = canvas.parentElement;
+        const maxWidth = Math.min(window.innerWidth - 40, 800);
+        canvas.width = maxWidth;
+        canvas.height = maxWidth * 0.6; // соотношение 0.6 (как 400/700)
+        canvasWidth = canvas.width;
+        canvasHeight = canvas.height;
+
+        // Размер героя: ширина 8% от ширины, высота 10% от высоты
+        heroWidth = canvasWidth * 0.08;
+        heroHeight = canvasHeight * 0.1;
+        heroY = canvasHeight - heroHeight - 10;
+        heroSpeed = canvasWidth * 0.015;
+        // Начальная позиция героя
+        if (heroX === 0) heroX = canvasWidth / 2 - heroWidth/2;
+        // Ограничения
+        if (heroX < 10) heroX = 10;
+        if (heroX + heroWidth > canvasWidth - 10) heroX = canvasWidth - heroWidth - 10;
+
+        // Размер шаров: 5% от ширины
+        ballRadius = canvasWidth * 0.045;
+        letterFontSize = ballRadius * 0.9;
+        infoFontSize = canvasWidth * 0.04;
+    }
+
+    // Показать экран проигрыша
+    function showLoseScreen() {
+        document.getElementById('gameplayArea').style.display = 'none';
+        const finalDiv = document.getElementById('finalScreen');
+        finalDiv.style.display = 'block';
+        finalDiv.innerHTML = `
+            <div class="final-screen lose">
+                <h2>😔 Ошибка 😔</h2>
+                <p>Ты поймала не ту букву...</p>
+                <p>Попробуй ещё раз!</p>
+                <button id="restartFromLoseBtn" class="reset-game">⟳ Пройти заново</button>
+            </div>
+        `;
+        document.getElementById('restartFromLoseBtn').addEventListener('click', () => {
+            finalDiv.style.display = 'none';
+            document.getElementById('gameplayArea').style.display = 'block';
+            resetGame();
+        });
+    }
+
+    // Показать экран победы
+    function showWinScreen() {
         document.getElementById('gameplayArea').style.display = 'none';
         const finalDiv = document.getElementById('finalScreen');
         finalDiv.style.display = 'block';
@@ -330,17 +381,16 @@
                 <h2>✨ Поздравляю! ✨</h2>
                 <p>Ты лучше всех, Гюнай!</p>
                 <div class="hearts">❤️ 🌞 🌙 ❤️</div>
-                <button id="restartFromFinalBtn" class="reset-game">⟳ Пройти заново</button>
+                <button id="restartFromWinBtn" class="reset-game">⟳ Пройти заново</button>
             </div>
         `;
-        document.getElementById('restartFromFinalBtn').addEventListener('click', () => {
-            // перезапуск игры
+        document.getElementById('restartFromWinBtn').addEventListener('click', () => {
             finalDiv.style.display = 'none';
             document.getElementById('gameplayArea').style.display = 'block';
             resetGame();
         });
     }
-    
+
     function resetGame() {
         gameRunning = true;
         currentWordIndex = 0;
@@ -350,7 +400,7 @@
         collectedLetters = [];
         fallingLetters = [];
         frame = 0;
-        heroX = 350;
+        heroX = canvasWidth / 2 - heroWidth/2;
         leftPressed = false;
         rightPressed = false;
         updateUI();
@@ -358,7 +408,7 @@
         if (animationId) cancelAnimationFrame(animationId);
         animationId = requestAnimationFrame(gameLoop);
     }
-    
+
     function nextWord() {
         currentWordIndex++;
         if (currentWordIndex < adjectives.length) {
@@ -371,40 +421,41 @@
         } else {
             gameRunning = false;
             cancelAnimationFrame(animationId);
-            showFinalScreen();
+            showWinScreen();
         }
     }
-    
+
     function spawnLetter() {
         if (!gameRunning) return;
         if (currentTargetIndex >= currentLetters.length) return;
-        let remainingLetters = currentLetters.slice(currentTargetIndex);
-        if (remainingLetters.length === 0) return;
-        let randomLetter = remainingLetters[Math.floor(Math.random() * remainingLetters.length)];
-        let x = Math.random() * (700 - 40) + 20;
+        let remaining = currentLetters.slice(currentTargetIndex);
+        if (remaining.length === 0) return;
+        let randomLetter = remaining[Math.floor(Math.random() * remaining.length)];
+        let x = Math.random() * (canvasWidth - 2 * ballRadius) + ballRadius;
         fallingLetters.push({
             letter: randomLetter,
             x: x,
             y: 0,
-            radius: 20
+            radius: ballRadius
         });
     }
-    
+
     function gameLoop() {
         if (!gameRunning) return;
         frame++;
         if (frame % SPAWN_DELAY === 0) {
             spawnLetter();
         }
-        
-        if (leftPressed && heroX > 10) heroX -= HERO_SPEED;
-        if (rightPressed && heroX < 700 - HERO_WIDTH - 10) heroX += HERO_SPEED;
-        
+
+        if (leftPressed && heroX > 10) heroX -= heroSpeed;
+        if (rightPressed && heroX < canvasWidth - heroWidth - 10) heroX += heroSpeed;
+
         for (let i = 0; i < fallingLetters.length; i++) {
             let l = fallingLetters[i];
-            l.y += 2.5;
-            if (l.y + l.radius >= HERO_Y && l.y - l.radius <= HERO_Y + HERO_HEIGHT &&
-                l.x + l.radius >= heroX && l.x - l.radius <= heroX + HERO_WIDTH) {
+            l.y += canvasHeight * 0.008; // скорость падения относительно высоты
+            // Столкновение с героем
+            if (l.y + l.radius >= heroY && l.y - l.radius <= heroY + heroHeight &&
+                l.x + l.radius >= heroX && l.x - l.radius <= heroX + heroWidth) {
                 if (l.letter === currentLetters[currentTargetIndex]) {
                     collectedLetters.push(l.letter);
                     currentTargetIndex++;
@@ -417,17 +468,17 @@
                         } else {
                             gameRunning = false;
                             cancelAnimationFrame(animationId);
-                            showFinalScreen();
+                            showWinScreen();
                             return;
                         }
                     }
                 } else {
                     gameRunning = false;
-                    messageArea.innerHTML = '❌ Игра окончена! Ты ошиблась. Начни заново. ❌';
                     cancelAnimationFrame(animationId);
+                    showLoseScreen();
                     return;
                 }
-            } else if (l.y + l.radius > 400) {
+            } else if (l.y + l.radius > canvasHeight) {
                 fallingLetters.splice(i,1);
                 i--;
             }
@@ -435,40 +486,51 @@
         draw();
         animationId = requestAnimationFrame(gameLoop);
     }
-    
+
     function draw() {
-        ctx.clearRect(0, 0, 700, 400);
+        if (!ctx) return;
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
         ctx.fillStyle = '#111';
-        ctx.fillRect(0, 0, 700, 400);
-        
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+        // Герой (смайлик)
         ctx.fillStyle = '#ffaa33';
-        ctx.fillRect(heroX, HERO_Y, HERO_WIDTH, HERO_HEIGHT);
+        ctx.fillRect(heroX, heroY, heroWidth, heroHeight);
         ctx.fillStyle = 'black';
-        ctx.font = '20px Arial';
-        ctx.fillText('😊', heroX+10, HERO_Y+22);
-        
+        ctx.font = `${heroHeight * 0.6}px Arial`;
+        ctx.fillText('😊', heroX + heroWidth*0.25, heroY + heroHeight*0.7);
+
+        // Падающие буквы
         for (let l of fallingLetters) {
             ctx.fillStyle = '#ffcc66';
             ctx.beginPath();
             ctx.arc(l.x, l.y, l.radius, 0, 2*Math.PI);
             ctx.fill();
             ctx.fillStyle = 'black';
-            ctx.font = 'bold 22px monospace';
-            ctx.fillText(l.letter, l.x-10, l.y+8);
+            ctx.font = `bold ${letterFontSize}px monospace`;
+            ctx.fillText(l.letter, l.x - l.radius*0.45, l.y + l.radius*0.35);
         }
-        
+
+        // Текстовая информация
         ctx.fillStyle = 'white';
-        ctx.font = '24px monospace';
-        ctx.fillText('Собрано: ' + collectedLetters.join(''), 20, 40);
+        ctx.font = `${infoFontSize}px monospace`;
+        ctx.fillText('Собрано: ' + collectedLetters.join(''), 10, infoFontSize + 5);
         ctx.fillStyle = '#aaa';
-        ctx.fillText('Нужно: ' + currentWord, 20, 80);
-        
+        ctx.fillText('Нужно: ' + currentWord, 10, infoFontSize*2 + 5);
         ctx.fillStyle = '#888';
-        ctx.font = '14px Arial';
-        ctx.fillText('← →  или кнопки', 550, 380);
+        ctx.font = `${infoFontSize*0.8}px Arial`;
+        ctx.fillText('← →  или кнопки', canvasWidth - infoFontSize*8, canvasHeight - 10);
     }
-    
+
     // Управление
+    window.addEventListener('resize', () => {
+        if (gameRunning) {
+            resizeCanvas();
+            // Корректировка позиции героя при изменении размера
+            heroX = Math.min(Math.max(heroX, 10), canvasWidth - heroWidth - 10);
+        }
+    });
+
     document.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowLeft') leftPressed = true;
         if (e.key === 'ArrowRight') rightPressed = true;
@@ -477,22 +539,28 @@
         if (e.key === 'ArrowLeft') leftPressed = false;
         if (e.key === 'ArrowRight') rightPressed = false;
     });
-    
-    document.getElementById('leftBtn').addEventListener('touchstart', (e) => { e.preventDefault(); leftPressed = true; });
-    document.getElementById('leftBtn').addEventListener('touchend', (e) => { e.preventDefault(); leftPressed = false; });
-    document.getElementById('rightBtn').addEventListener('touchstart', (e) => { e.preventDefault(); rightPressed = true; });
-    document.getElementById('rightBtn').addEventListener('touchend', (e) => { e.preventDefault(); rightPressed = false; });
-    document.getElementById('leftBtn').addEventListener('mousedown', () => leftPressed = true);
-    document.getElementById('leftBtn').addEventListener('mouseup', () => leftPressed = false);
-    document.getElementById('rightBtn').addEventListener('mousedown', () => rightPressed = true);
-    document.getElementById('rightBtn').addEventListener('mouseup', () => rightPressed = false);
-    
+
+    const leftBtn = document.getElementById('leftBtn');
+    const rightBtn = document.getElementById('rightBtn');
+    leftBtn.addEventListener('touchstart', (e) => { e.preventDefault(); leftPressed = true; });
+    leftBtn.addEventListener('touchend', (e) => { e.preventDefault(); leftPressed = false; });
+    rightBtn.addEventListener('touchstart', (e) => { e.preventDefault(); rightPressed = true; });
+    rightBtn.addEventListener('touchend', (e) => { e.preventDefault(); rightPressed = false; });
+    leftBtn.addEventListener('mousedown', () => leftPressed = true);
+    leftBtn.addEventListener('mouseup', () => leftPressed = false);
+    rightBtn.addEventListener('mousedown', () => rightPressed = true);
+    rightBtn.addEventListener('mouseup', () => rightPressed = false);
+
     document.getElementById('resetGameBtn').addEventListener('click', () => {
         if (animationId) cancelAnimationFrame(animationId);
+        // Скрываем финальный экран, если он был
+        document.getElementById('finalScreen').style.display = 'none';
+        document.getElementById('gameplayArea').style.display = 'block';
         resetGame();
     });
-    
+
     function startGame() {
+        resizeCanvas();
         resetGame();
     }
 </script>
