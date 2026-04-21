@@ -25,7 +25,7 @@
             overflow-x: hidden;
             padding: 10px;
         }
-        /* Звёзды - уменьшено количество и упрощена анимация */
+        /* Звёзды на основном фоне */
         .star {
             position: absolute;
             background-color: white;
@@ -195,17 +195,74 @@
         .final-screen.lose h2 {
             color: #ff8888;
         }
+        /* Заставка-инструкция со звёздами */
+        .splash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            text-align: center;
+            padding: 20px;
+            backdrop-filter: blur(5px);
+        }
+        .splash-content {
+            position: relative;
+            z-index: 102;
+            max-width: 90%;
+            background: rgba(0,0,0,0.7);
+            border-radius: 60px;
+            padding: 30px;
+            border: 2px solid #ffaa33;
+            backdrop-filter: blur(10px);
+        }
+        .splash-content p {
+            margin: 15px 0;
+            font-size: 20px;
+        }
+        .splash-content button {
+            margin-top: 20px;
+            background: #ffaa33;
+            color: black;
+            font-size: 24px;
+            padding: 12px 30px;
+        }
+        #splashStars {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 101;
+            pointer-events: none;
+        }
+        .splash-star {
+            position: absolute;
+            background-color: white;
+            border-radius: 50%;
+            opacity: 0.9;
+            box-shadow: 0 0 6px white;
+            animation: splashTwinkle 3s infinite alternate;
+        }
+        @keyframes splashTwinkle {
+            0% { opacity: 0.5; transform: scale(1);}
+            100% { opacity: 1; transform: scale(1.3);}
+        }
         @media (max-width: 600px) {
-            .container h1 {
-                font-size: 20px;
-                white-space: nowrap;
-            }
+            .container h1 { font-size: 20px; white-space: nowrap; }
             .ctrl-btn { font-size: 36px; padding: 12px 20px; min-width: 80px; }
             .current-word { font-size: 20px; white-space: nowrap; }
             .game-info { font-size: 14px; }
             .container { padding: 15px; }
             .final-screen h2 { font-size: 28px; }
             .final-screen p { font-size: 22px; }
+            .splash-content p { font-size: 16px; }
         }
     </style>
 </head>
@@ -214,14 +271,30 @@
 <div class="sun-moon">🌞🌙</div>
 <div class="moon-star">🌙✨</div>
 
+<!-- ЗАСТАВКА С ИНСТРУКЦИЕЙ И ЗВЁЗДАМИ -->
+<div id="splashScreen" class="splash">
+    <div id="splashStars"></div>
+    <div class="splash-content">
+        <h2>✨ Добро пожаловать ✨</h2>
+        <p>🌙 Тебе предстоит собрать слова, описывающие твои качества.</p>
+        <p>🌞 Управляй смайликом стрелками ← → или кнопками на экране.</p>
+        <p>⭐ Лови падающие буквы в правильном порядке, чтобы собрать слово.</p>
+        <p>💖 Если поймаешь не ту букву — игра закончится, но ты сможешь начать заново.</p>
+        <p>✨ Приятной игры! ✨</p>
+        <button id="closeSplashBtn">Начать</button>
+    </div>
+</div>
+
+<!-- СТРАНИЦА ПАРОЛЯ -->
 <div id="passwordPage" class="container">
     <h1>🌞 Введи пароль 🌙</h1>
     <input type="text" id="passwordInput" placeholder="Пароль" autocomplete="off">
     <button onclick="checkPassword()">Войти</button>
     <div id="hint"></div>
-    <footer>Подсказка через 10 секунд</footer>
+    <footer>Подсказка через 20 секунд</footer>
 </div>
 
+<!-- ИГРОВАЯ СТРАНИЦА -->
 <div id="gamePage" class="container hidden">
     <h1>✨ Собери слово ✨</h1>
     <div id="gameplayArea">
@@ -242,7 +315,7 @@
 </div>
 
 <script>
-    // ЗВЁЗДЫ - уменьшено количество до 80, для производительности
+    // ЗВЁЗДЫ НА ОСНОВНОМ ФОНЕ
     function createStars() {
         const container = document.getElementById('starsContainer');
         for (let i = 0; i < 80; i++) {
@@ -259,6 +332,30 @@
     }
     createStars();
 
+    // ЗВЁЗДЫ НА ЗАСТАВКЕ
+    function createSplashStars() {
+        const container = document.getElementById('splashStars');
+        for (let i = 0; i < 100; i++) {
+            let star = document.createElement('div');
+            star.classList.add('splash-star');
+            let size = Math.random() * 4 + 1;
+            star.style.width = size + 'px';
+            star.style.height = size + 'px';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.animationDelay = Math.random() * 5 + 's';
+            container.appendChild(star);
+        }
+    }
+    createSplashStars();
+
+    // ЗАСТАВКА
+    const splash = document.getElementById('splashScreen');
+    const closeSplash = document.getElementById('closeSplashBtn');
+    closeSplash.addEventListener('click', () => {
+        splash.style.display = 'none';
+    });
+
     // ПАРОЛЬ
     let hintTimer;
     const correctPassword = "Гюнай";
@@ -266,7 +363,7 @@
     function startHintTimer() {
         hintTimer = setTimeout(() => {
             document.getElementById('hint').innerHTML = "🌙 Подсказка: Солнце и Луна вместе — это... 🌞";
-        }, 10000);
+        }, 20000);
     }
 
     function checkPassword() {
@@ -282,7 +379,7 @@
     }
     startHintTimer();
 
-    // ИГРА
+    // ИГРА (оптимизированная)
     const adjectives = ["Добрая", "Щедрая", "Честная", "Красивая", "Заботливая"];
     let currentWordIndex = 0;
     let currentWord = adjectives[currentWordIndex];
@@ -293,7 +390,7 @@
     let animationId = null;
     let fallingLetters = [];
     let frame = 0;
-    const SPAWN_DELAY = 40; // чуть меньше для динамики
+    const SPAWN_DELAY = 40;
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -483,7 +580,7 @@
             ctx.fillText(l.letter, l.x - l.radius*0.45, l.y + l.radius*0.35);
         }
         ctx.fillStyle = 'white';
-        ctx.font = `${infoFontSize}px monospace`;
+	ctx.font = `${infoFontSize}px monospace`;
         ctx.fillText('Собрано: ' + collectedLetters.join(''), 10, infoFontSize + 5);
         ctx.fillStyle = '#aaa';
         ctx.fillText('Нужно: ' + currentWord, 10, infoFontSize*2 + 5);
