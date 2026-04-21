@@ -2,8 +2,8 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Подарок для Гюнай</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Секретное послание для Гюнай</title>
     <style>
         * {
             margin: 0;
@@ -18,19 +18,21 @@
             font-family: 'Arial', sans-serif;
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            text-align: center;
             position: relative;
             overflow-x: hidden;
             padding: 10px;
         }
+        /* звёзды */
         .star {
             position: absolute;
             background-color: white;
             border-radius: 50%;
             opacity: 0.7;
             animation: twinkle 3s infinite alternate;
+            pointer-events: none;
         }
         @keyframes twinkle {
             0% { opacity: 0.3; transform: scale(1);}
@@ -110,8 +112,7 @@
             margin: 10px auto;
             box-shadow: 0 0 20px rgba(255,255,255,0.2);
             width: 100%;
-            height: auto;
-            cursor: pointer;
+            background-color: #0a0a0a;
             touch-action: none;
         }
         .game-info {
@@ -121,12 +122,14 @@
             font-size: 16px;
             flex-wrap: wrap;
             gap: 10px;
+            padding: 0 10px;
         }
         .controls {
             display: flex;
             justify-content: center;
             gap: 30px;
             margin-top: 15px;
+            margin-bottom: 10px;
         }
         .ctrl-btn {
             background: #333;
@@ -135,23 +138,24 @@
             font-weight: bold;
             padding: 10px 30px;
             border-radius: 60px;
-            cursor: pointer;
+cursor: pointer;
             transition: 0.2s;
             touch-action: manipulation;
             min-width: 80px;
-}
+            text-align: center;
+        }
         .ctrl-btn:active {
             background: #ff9800;
             transform: scale(0.95);
         }
         .reset-game {
             background-color: #444;
-            margin-top: 15px;
+            margin-top: 5px;
             padding: 8px 20px;
         }
         .win-message, .lose-message {
             font-size: 20px;
-            margin-top: 20px;
+            margin-top: 15px;
             animation: pulse 1s infinite;
         }
         .lose-message {
@@ -164,16 +168,16 @@
             100% { transform: scale(1); }
         }
         .current-word {
-            font-size: 24px;
-            margin-bottom: 10px;
+            font-size: 22px;
+            margin-bottom: 8px;
             background: rgba(0,0,0,0.6);
             display: inline-block;
-            padding: 8px 16px;
+            padding: 6px 12px;
             border-radius: 60px;
         }
         max-width: 600px {
             .ctrl-btn { font-size: 28px; padding: 8px 20px; min-width: 70px; }
-            .current-word { font-size: 20px; }
+            .current-word { font-size: 18px; }
             .game-info { font-size: 14px; }
             .container { padding: 15px; }
         }
@@ -193,11 +197,11 @@
 </div>
 
 <div id="gamePage" class="container hidden">
-    <h1>✨ Собери слово ✨</h1>
+    <h1 style="font-size: 1.5rem;">✨ Собери слово ✨</h1>
     <div class="current-word" id="currentWordDisplay">Ты ...</div>
-    <canvas id="gameCanvas" width="700" height="400" style="width:100%; height:auto; max-width:700px; aspect-ratio:700/400;"></canvas>
+    <canvas id="gameCanvas"></canvas>
     <div class="game-info">
-        <span>🔤 Собрано букв: <span id="collectedCount">0</span> / <span id="totalCount">0</span></span>
+        <span>🔤 Собрано: <span id="collectedCount">0</span> / <span id="totalCount">0</span></span>
         <span>📖 Слово <span id="wordIndex">1</span> / <span id="totalWords">6</span></span>
     </div>
     <div class="controls">
@@ -249,7 +253,7 @@
     }
     startHintTimer();
 
-    // ----- ИГРА СО СЛОВАМИ-ПРИЛАГАТЕЛЬНЫМИ (АДАПТИВНАЯ) -----
+    // ----- ИГРА С ДИНАМИЧЕСКИМИ РАЗМЕРАМИ -----
     const adjectives = ["Добрая", "Щедрая", "Честная", "Красивая", "Умная", "Солнечная"];
     let currentWordIndex = 0;
     let currentWord = adjectives[currentWordIndex];
@@ -265,41 +269,54 @@
 
     let canvas = document.getElementById('gameCanvas');
     let ctx = canvas.getContext('2d');
+    let canvasWidth = 0, canvasHeight = 0;
     
-    // Размеры canvas будут задаваться динамически при каждом рендере
-    let canvasWidth = canvas.clientWidth;
-    let canvasHeight = canvas.clientHeight;
-    // Но для логики удобнее использовать фиксированные размеры 700x400, а координаты пересчитывать пропорционально
-    // Проще использовать фиксированную логику 700x400, а canvas масштабируется через CSS, координаты остаются как есть,
-    // но тогда управление мышкой/тачем не нужно, так как у нас кнопки. Поэтому оставим логику с фиксированными 700x400,
-    // а canvas просто растянется. Пользователь видит всё, но игра работает в тех же координатах. Это приемлемо.
-    // Однако для корректного отображения текста нужно масштабировать шрифты? Нет, они тоже будут масштабироваться.
-    // Просто установим canvas атрибуты width/height 700/400, а через CSS зададим width:100% height:auto.
-    // Так и сделаем.
-    
-    let heroX = 350; // центр по ширине 700
-    const HERO_WIDTH = 40;
-    const HERO_HEIGHT = 30;
-    const HERO_Y = 350; // canvas.height - 50 = 350
+    // Параметры героя (будут пересчитываться при каждом resize)
+    let heroX = 0;
+    let heroWidth = 0;
+    let heroHeight = 0;
+    let heroY = 0;
+    let heroSpeed = 0;
     
     let leftPressed = false;
     let rightPressed = false;
-    const HERO_SPEED = 7;
     
-    let collectedSpan = document.getElementById('collectedCount');
-    let totalSpan = document.getElementById('totalCount');
-    let wordIndexSpan = document.getElementById('wordIndex');
-    let totalWordsSpan = document.getElementById('totalWords');
-    let currentWordDisplay = document.getElementById('currentWordDisplay');
-    let messageArea = document.getElementById('messageArea');
-    
-    totalWordsSpan.innerText = adjectives.length;
+    // Обновление размеров canvas и пересчёт параметров
+    function resizeCanvas() {
+        // Задаём canvas размеры: ширина 100% от родителя, высота 60% от высоты окна
+        let container = document.querySelector('#gamePage .container');
+        let maxWidth = Math.min(window.innerWidth - 40, 800);
+        canvas.style.width = maxWidth + 'px';
+        canvas.width = maxWidth;
+        // Высота: 55% от высоты экрана, но не менее 300px
+        let desiredHeight = Math.max(300, window.innerHeight * 0.55);
+        canvas.style.height = desiredHeight + 'px';
+        canvas.height = desiredHeight;
+        canvasWidth = canvas.width;
+        canvasHeight = canvas.height;
+        
+        // Пересчитываем размеры героя относительно canvas
+        heroWidth = canvasWidth * 0.06;   // 6% от ширины
+        heroHeight = canvasHeight * 0.08; // 8% от высоты
+        heroY = canvasHeight - heroHeight - 10;
+        heroSpeed = canvasWidth * 0.01;    // скорость 1% от ширины
+        if (heroX === 0) heroX = canvasWidth / 2 - heroWidth/2;
+        // ограничиваем героя в пределах canvas
+        if (heroX < 5) heroX = 5;
+        if (heroX + heroWidth > canvasWidth - 5) heroX = canvasWidth - heroWidth - 5;
+        
+        // Масштабируем радиус букв
+        for (let l of fallingLetters) {
+            l.radius = canvasWidth * 0.03;
+        }
+    }
     
     function updateUI() {
-        collectedSpan.innerText = collectedLetters.length;
-        totalSpan.innerText = currentLetters.length;
-        wordIndexSpan.innerText = currentWordIndex + 1;
-        currentWordDisplay.innerHTML = `Ты ... ${currentWord}`;
+        document.getElementById('collectedCount').innerText = collectedLetters.length;
+        document.getElementById('totalCount').innerText = currentLetters.length;
+        document.getElementById('wordIndex').innerText = currentWordIndex + 1;
+        document.getElementById('totalWords').innerText = adjectives.length;
+        document.getElementById('currentWordDisplay').innerHTML = `Ты ... ${currentWord}`;
     }
     
     function resetGame() {
@@ -311,11 +328,12 @@
         collectedLetters = [];
         fallingLetters = [];
         frame = 0;
-        heroX = 350;
+        resizeCanvas();  // обновить размеры и сбросить heroX
+        heroX = canvasWidth / 2 - heroWidth/2;
         leftPressed = false;
         rightPressed = false;
         updateUI();
-        messageArea.innerHTML = '';
+        document.getElementById('messageArea').innerHTML = '';
         if (animationId) cancelAnimationFrame(animationId);
         animationId = requestAnimationFrame(gameLoop);
     }
@@ -331,7 +349,7 @@
             updateUI();
         } else {
             gameRunning = false;
-            messageArea.innerHTML = '❤️ Ты собрала все слова! Ты лучше всех, Гюнай! ❤️';
+            document.getElementById('messageArea').innerHTML = '❤️ Ты собрала все слова! Ты удивительная, Гюнай! 🌞🌙 ❤️';
             cancelAnimationFrame(animationId);
         }
     }
@@ -342,12 +360,13 @@
         let remainingLetters = currentLetters.slice(currentTargetIndex);
         if (remainingLetters.length === 0) return;
         let randomLetter = remainingLetters[Math.floor(Math.random() * remainingLetters.length)];
-        let x = Math.random() * (700 - 40) + 20;
+        let x = Math.random() * (canvasWidth - 40) + 20;
+        let radius = canvasWidth * 0.03;
         fallingLetters.push({
             letter: randomLetter,
             x: x,
             y: 0,
-            radius: 20
+            radius: radius
         });
     }
     
@@ -358,14 +377,15 @@
             spawnLetter();
         }
         
-        if (leftPressed && heroX > 10) heroX -= HERO_SPEED;
-        if (rightPressed && heroX < 700 - HERO_WIDTH - 10) heroX += HERO_SPEED;
+        if (leftPressed && heroX > 5) heroX -= heroSpeed;
+        if (rightPressed && heroX + heroWidth < canvasWidth - 5) heroX += heroSpeed;
         
         for (let i = 0; i < fallingLetters.length; i++) {
             let l = fallingLetters[i];
-            l.y += 2.5;
-            if (l.y + l.radius >= HERO_Y && l.y - l.radius <= HERO_Y + HERO_HEIGHT &&
-                l.x + l.radius >= heroX && l.x - l.radius <= heroX + HERO_WIDTH) {
+            l.y += canvasHeight * 0.006; // скорость падения относительно высоты
+            // Столкновение с героем
+            if (l.y + l.radius >= heroY && l.y - l.radius <= heroY + heroHeight &&
+                l.x + l.radius >= heroX && l.x - l.radius <= heroX + heroWidth) {
                 if (l.letter === currentLetters[currentTargetIndex]) {
                     collectedLetters.push(l.letter);
                     currentTargetIndex++;
@@ -377,18 +397,18 @@
                             nextWord();
                         } else {
                             gameRunning = false;
-                            messageArea.innerHTML = '❤️ Ты собрала все слова! Ты удивительная, Гюнай! 🌞🌙 ❤️';
+                            document.getElementById('messageArea').innerHTML = '❤️ Ты собрала все слова! Ты удивительная, Гюнай! 🌞🌙 ❤️';
                             cancelAnimationFrame(animationId);
                             return;
                         }
                     }
                 } else {
                     gameRunning = false;
-                    messageArea.innerHTML = '❌ Игра окончена! Ты ошиблась. Начни заново. ❌';
+                    document.getElementById('messageArea').innerHTML = '❌ Игра окончена! Ты ошиблась. Начни заново. ❌';
                     cancelAnimationFrame(animationId);
                     return;
                 }
-            } else if (l.y + l.radius > 400) {
+            } else if (l.y + l.radius > canvasHeight) {
                 fallingLetters.splice(i,1);
                 i--;
             }
@@ -398,35 +418,38 @@
     }
     
     function draw() {
-        ctx.clearRect(0, 0, 700, 400);
+        if (!ctx) return;
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
         ctx.fillStyle = '#111';
-        ctx.fillRect(0, 0, 700, 400);
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
         
+        // Герой
         ctx.fillStyle = '#ffaa33';
-        ctx.fillRect(heroX, HERO_Y, HERO_WIDTH, HERO_HEIGHT);
+        ctx.fillRect(heroX, heroY, heroWidth, heroHeight);
         ctx.fillStyle = 'black';
-        ctx.font = '20px Arial';
-        ctx.fillText('😊', heroX+10, HERO_Y+22);
+        let fontSize = Math.max(16, heroHeight * 0.6);
+        ctx.font = `${fontSize}px Arial`;
+        ctx.fillText('😊', heroX + heroWidth*0.25, heroY + heroHeight*0.7);
         
+        // Буквы
         for (let l of fallingLetters) {
             ctx.fillStyle = '#ffcc66';
             ctx.beginPath();
             ctx.arc(l.x, l.y, l.radius, 0, 2*Math.PI);
             ctx.fill();
             ctx.fillStyle = 'black';
-            ctx.font = 'bold 22px monospace';
-            ctx.fillText(l.letter, l.x-10, l.y+8);
+            let letterFont = Math.max(14, l.radius * 0.9);
+            ctx.font = `bold ${letterFont}px monospace`;
+            ctx.fillText(l.letter, l.x - l.radius*0.5, l.y + l.radius*0.3);
         }
         
+        // Статистика на canvas
         ctx.fillStyle = 'white';
-        ctx.font = '24px monospace';
-        ctx.fillText('Собрано: ' + collectedLetters.join(''), 20, 40);
+        let statFont = Math.max(12, canvasWidth * 0.03);
+        ctx.font = `${statFont}px monospace`;
+        ctx.fillText('Собрано: ' + collectedLetters.join(''), 10, 30);
         ctx.fillStyle = '#aaa';
-        ctx.fillText('Нужно: ' + currentWord, 20, 80);
-        
-        ctx.fillStyle = '#888';
-        ctx.font = '14px Arial';
-        ctx.fillText('← →  или кнопки', 550, 380);
+        ctx.fillText('Нужно: ' + currentWord, 10, 60);
     }
     
     // Управление
@@ -455,6 +478,11 @@
     
     function startGame() {
         resetGame();
+        window.addEventListener('resize', () => {
+            if (gameRunning) {
+                resizeCanvas();
+            }
+        });
     }
 </script>
 </body>
