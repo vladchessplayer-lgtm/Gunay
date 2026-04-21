@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Подарок для Гюнай</title>
     <style>
         * {
@@ -22,6 +23,7 @@
             text-align: center;
             position: relative;
             overflow-x: hidden;
+            padding: 10px;
         }
         .star {
             position: absolute;
@@ -41,6 +43,7 @@
             font-size: 40px;
             opacity: 0.6;
             animation: float 6s infinite ease-in-out;
+            pointer-events: none;
         }
         .moon-star {
             position: absolute;
@@ -49,6 +52,7 @@
             font-size: 40px;
             opacity: 0.6;
             animation: float 8s infinite reverse;
+            pointer-events: none;
         }
         @keyframes float {
             0% { transform: translateY(0px); }
@@ -60,8 +64,8 @@
             backdrop-filter: blur(8px);
             border-radius: 40px;
             border: 1px solid rgba(255,215,0,0.3);
-            padding: 30px;
-            width: 90%;
+            padding: 20px;
+            width: 95%;
             max-width: 800px;
             z-index: 10;
             box-shadow: 0 0 40px rgba(0,0,0,0.8);
@@ -103,8 +107,10 @@
             background: #111;
             border-radius: 20px;
             display: block;
-            margin: 20px auto;
+            margin: 10px auto;
             box-shadow: 0 0 20px rgba(255,255,255,0.2);
+            width: 100%;
+            height: auto;
             cursor: pointer;
             touch-action: none;
         }
@@ -112,7 +118,9 @@
             display: flex;
             justify-content: space-between;
             margin-top: 10px;
-            font-size: 18px;
+            font-size: 16px;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         .controls {
             display: flex;
@@ -130,7 +138,8 @@
             cursor: pointer;
             transition: 0.2s;
             touch-action: manipulation;
-        }
+            min-width: 80px;
+}
         .ctrl-btn:active {
             background: #ff9800;
             transform: scale(0.95);
@@ -141,9 +150,8 @@
             padding: 8px 20px;
         }
         .win-message, .lose-message {
-            font-size: 24px;
-            mar
-gin-top: 20px;
+            font-size: 20px;
+            margin-top: 20px;
             animation: pulse 1s infinite;
         }
         .lose-message {
@@ -156,17 +164,18 @@ gin-top: 20px;
             100% { transform: scale(1); }
         }
         .current-word {
-            font-size: 32px;
-            margin-bottom: 15px;
+            font-size: 24px;
+            margin-bottom: 10px;
             background: rgba(0,0,0,0.6);
             display: inline-block;
-            padding: 10px 20px;
+            padding: 8px 16px;
             border-radius: 60px;
         }
         max-width: 600px {
-            .ctrl-btn { font-size: 28px; padding: 8px 25px; }
-            canvas { width: 100%; height: auto; }
-            .current-word { font-size: 24px; }
+            .ctrl-btn { font-size: 28px; padding: 8px 20px; min-width: 70px; }
+            .current-word { font-size: 20px; }
+            .game-info { font-size: 14px; }
+            .container { padding: 15px; }
         }
     </style>
 </head>
@@ -186,7 +195,7 @@ gin-top: 20px;
 <div id="gamePage" class="container hidden">
     <h1>✨ Собери слово ✨</h1>
     <div class="current-word" id="currentWordDisplay">Ты ...</div>
-    <canvas id="gameCanvas" width="700" height="400"></canvas>
+    <canvas id="gameCanvas" width="700" height="400" style="width:100%; height:auto; max-width:700px; aspect-ratio:700/400;"></canvas>
     <div class="game-info">
         <span>🔤 Собрано букв: <span id="collectedCount">0</span> / <span id="totalCount">0</span></span>
         <span>📖 Слово <span id="wordIndex">1</span> / <span id="totalWords">6</span></span>
@@ -240,50 +249,59 @@ gin-top: 20px;
     }
     startHintTimer();
 
-    // ----- ИГРА СО СЛОВАМИ-ПРИЛАГАТЕЛЬНЫМИ -----
+    // ----- ИГРА СО СЛОВАМИ-ПРИЛАГАТЕЛЬНЫМИ (АДАПТИВНАЯ) -----
     const adjectives = ["Добрая", "Щедрая", "Честная", "Красивая", "Умная", "Солнечная"];
     let currentWordIndex = 0;
     let currentWord = adjectives[currentWordIndex];
-    let currentLetters = currentWord.split(''); // массив букв
-    let currentTargetIndex = 0; // индекс следующей нужной буквы
+    let currentLetters = currentWord.split('');
+    let currentTargetIndex = 0;
     let collectedLetters = [];
     let gameRunning = true;
     let animationId = null;
 
-    // Падающие буквы
     let fallingLetters = [];
     let frame = 0;
     const SPAWN_DELAY = 45;
 
     let canvas = document.getElementById('gameCanvas');
     let ctx = canvas.getContext('2d');
-    let heroX = canvas.width / 2;
+    
+    // Размеры canvas будут задаваться динамически при каждом рендере
+    let canvasWidth = canvas.clientWidth;
+    let canvasHeight = canvas.clientHeight;
+    // Но для логики удобнее использовать фиксированные размеры 700x400, а координаты пересчитывать пропорционально
+    // Проще использовать фиксированную логику 700x400, а canvas масштабируется через CSS, координаты остаются как есть,
+    // но тогда управление мышкой/тачем не нужно, так как у нас кнопки. Поэтому оставим логику с фиксированными 700x400,
+    // а canvas просто растянется. Пользователь видит всё, но игра работает в тех же координатах. Это приемлемо.
+    // Однако для корректного отображения текста нужно масштабировать шрифты? Нет, они тоже будут масштабироваться.
+    // Просто установим canvas атрибуты width/height 700/400, а через CSS зададим width:100% height:auto.
+    // Так и сделаем.
+    
+    let heroX = 350; // центр по ширине 700
     const HERO_WIDTH = 40;
     const HERO_HEIGHT = 30;
-    const HERO_Y = canvas.height - 50;
-
+    const HERO_Y = 350; // canvas.height - 50 = 350
+    
     let leftPressed = false;
     let rightPressed = false;
     const HERO_SPEED = 7;
-
-    // UI элементы
+    
     let collectedSpan = document.getElementById('collectedCount');
     let totalSpan = document.getElementById('totalCount');
     let wordIndexSpan = document.getElementById('wordIndex');
     let totalWordsSpan = document.getElementById('totalWords');
     let currentWordDisplay = document.getElementById('currentWordDisplay');
     let messageArea = document.getElementById('messageArea');
-
+    
     totalWordsSpan.innerText = adjectives.length;
-
+    
     function updateUI() {
         collectedSpan.innerText = collectedLetters.length;
         totalSpan.innerText = currentLetters.length;
         wordIndexSpan.innerText = currentWordIndex + 1;
-        // Отображаем "Ты ... Добрая" (текущее слово)
         currentWordDisplay.innerHTML = `Ты ... ${currentWord}`;
     }
-
+    
     function resetGame() {
         gameRunning = true;
         currentWordIndex = 0;
@@ -293,7 +311,7 @@ gin-top: 20px;
         collectedLetters = [];
         fallingLetters = [];
         frame = 0;
-        heroX = canvas.width / 2;
+        heroX = 350;
         leftPressed = false;
         rightPressed = false;
         updateUI();
@@ -301,7 +319,7 @@ gin-top: 20px;
         if (animationId) cancelAnimationFrame(animationId);
         animationId = requestAnimationFrame(gameLoop);
     }
-
+    
     function nextWord() {
         currentWordIndex++;
         if (currentWordIndex < adjectives.length) {
@@ -311,26 +329,20 @@ gin-top: 20px;
             collectedLetters = [];
             fallingLetters = [];
             updateUI();
-            // игра продолжается, не сбрасываем анимацию
         } else {
-            // Победа! Все слова собраны
             gameRunning = false;
             messageArea.innerHTML = '❤️ Ты собрала все слова! Ты лучше всех, Гюнай! ❤️';
             cancelAnimationFrame(animationId);
         }
     }
-
+    
     function spawnLetter() {
         if (!gameRunning) return;
-        if (currentTargetIndex >= currentLetters.length) {
-            // слово уже собрано, но мы переключимся в следующем кадре
-            return;
-        }
-        // Падают только буквы, которые могут быть нужны (текущая или последующие)
+        if (currentTargetIndex >= currentLetters.length) return;
         let remainingLetters = currentLetters.slice(currentTargetIndex);
         if (remainingLetters.length === 0) return;
         let randomLetter = remainingLetters[Math.floor(Math.random() * remainingLetters.length)];
-        let x = Math.random() * (canvas.width - 40) + 20;
+        let x = Math.random() * (700 - 40) + 20;
         fallingLetters.push({
             letter: randomLetter,
             x: x,
@@ -338,39 +350,32 @@ gin-top: 20px;
             radius: 20
         });
     }
-
+    
     function gameLoop() {
         if (!gameRunning) return;
-
         frame++;
         if (frame % SPAWN_DELAY === 0) {
             spawnLetter();
         }
-
-        // Управление
+        
         if (leftPressed && heroX > 10) heroX -= HERO_SPEED;
-        if (rightPressed && heroX < canvas.width - HERO_WIDTH - 10) heroX += HERO_SPEED;
-
-        // Проверка столкновений
+        if (rightPressed && heroX < 700 - HERO_WIDTH - 10) heroX += HERO_SPEED;
+        
         for (let i = 0; i < fallingLetters.length; i++) {
             let l = fallingLetters[i];
             l.y += 2.5;
             if (l.y + l.radius >= HERO_Y && l.y - l.radius <= HERO_Y + HERO_HEIGHT &&
                 l.x + l.radius >= heroX && l.x - l.radius <= heroX + HERO_WIDTH) {
-                // Поймали букву
                 if (l.letter === currentLetters[currentTargetIndex]) {
-                    // Правильная буква
                     collectedLetters.push(l.letter);
                     currentTargetIndex++;
                     updateUI();
                     fallingLetters.splice(i,1);
                     i--;
                     if (currentTargetIndex === currentLetters.length) {
-// Слово собрано полностью
                         if (currentWordIndex + 1 < adjectives.length) {
                             nextWord();
                         } else {
-                            // последнее слово собрано
                             gameRunning = false;
                             messageArea.innerHTML = '❤️ Ты собрала все слова! Ты удивительная, Гюнай! 🌞🌙 ❤️';
                             cancelAnimationFrame(animationId);
@@ -378,36 +383,31 @@ gin-top: 20px;
                         }
                     }
                 } else {
-                    // Неправильная буква — проигрыш
                     gameRunning = false;
                     messageArea.innerHTML = '❌ Игра окончена! Ты ошиблась. Начни заново. ❌';
                     cancelAnimationFrame(animationId);
                     return;
                 }
-            } else if (l.y + l.radius > canvas.height) {
-                // Упала вниз — просто удаляем
+            } else if (l.y + l.radius > 400) {
                 fallingLetters.splice(i,1);
                 i--;
             }
         }
-
         draw();
         animationId = requestAnimationFrame(gameLoop);
     }
-
+    
     function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, 700, 400);
         ctx.fillStyle = '#111';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, 700, 400);
         
-        // Герой
         ctx.fillStyle = '#ffaa33';
         ctx.fillRect(heroX, HERO_Y, HERO_WIDTH, HERO_HEIGHT);
         ctx.fillStyle = 'black';
         ctx.font = '20px Arial';
         ctx.fillText('😊', heroX+10, HERO_Y+22);
         
-        // Падающие буквы
         for (let l of fallingLetters) {
             ctx.fillStyle = '#ffcc66';
             ctx.beginPath();
@@ -418,7 +418,6 @@ gin-top: 20px;
             ctx.fillText(l.letter, l.x-10, l.y+8);
         }
         
-        // Собранные буквы текущего слова
         ctx.fillStyle = 'white';
         ctx.font = '24px monospace';
         ctx.fillText('Собрано: ' + collectedLetters.join(''), 20, 40);
@@ -427,9 +426,9 @@ gin-top: 20px;
         
         ctx.fillStyle = '#888';
         ctx.font = '14px Arial';
-        ctx.fillText('← →  или кнопки', canvas.width-150, canvas.height-20);
+        ctx.fillText('← →  или кнопки', 550, 380);
     }
-
+    
     // Управление
     document.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowLeft') leftPressed = true;
@@ -439,7 +438,7 @@ gin-top: 20px;
         if (e.key === 'ArrowLeft') leftPressed = false;
         if (e.key === 'ArrowRight') rightPressed = false;
     });
-
+    
     document.getElementById('leftBtn').addEventListener('touchstart', (e) => { e.preventDefault(); leftPressed = true; });
     document.getElementById('leftBtn').addEventListener('touchend', (e) => { e.preventDefault(); leftPressed = false; });
     document.getElementById('rightBtn').addEventListener('touchstart', (e) => { e.preventDefault(); rightPressed = true; });
@@ -448,12 +447,12 @@ gin-top: 20px;
     document.getElementById('leftBtn').addEventListener('mouseup', () => leftPressed = false);
     document.getElementById('rightBtn').addEventListener('mousedown', () => rightPressed = true);
     document.getElementById('rightBtn').addEventListener('mouseup', () => rightPressed = false);
-
+    
     document.getElementById('resetGameBtn').addEventListener('click', () => {
         if (animationId) cancelAnimationFrame(animationId);
         resetGame();
     });
-
+    
     function startGame() {
         resetGame();
     }
