@@ -139,7 +139,7 @@
             transition: 0.2s;
             touch-action: manipulation;
             min-width: 80px;
-}
+        }
         .ctrl-btn:active {
             background: #ff9800;
             transform: scale(0.95);
@@ -171,11 +171,37 @@
             padding: 8px 16px;
             border-radius: 60px;
         }
-        max-width: 600px {
+        /* Финальный экран */
+        .final-screen {
+            background: rgba(0,0,0,0.95);
+            border-radius: 60px;
+            padding: 40px;
+            text-align: center;
+            border: 2px solid #ffaa33;
+            box-shadow: 0 0 50px rgba(255,170,51,0.5);
+            margin: 20px;
+        }
+        .final-screen h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: #ffcc66;
+        }
+        .final-screen p {
+            font-size: 28px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .final-screen .hearts {
+            font-size: 48px;
+            letter-spacing: 10px;
+        }
+        @media (max-width: 600px) {
             .ctrl-btn { font-size: 28px; padding: 8px 20px; min-width: 70px; }
             .current-word { font-size: 20px; }
             .game-info { font-size: 14px; }
             .container { padding: 15px; }
+            .final-screen h2 { font-size: 28px; }
+            .final-screen p { font-size: 22px; }
         }
     </style>
 </head>
@@ -194,18 +220,21 @@
 
 <div id="gamePage" class="container hidden">
     <h1>✨ Собери слово ✨</h1>
-    <div class="current-word" id="currentWordDisplay">Ты ...</div>
-    <canvas id="gameCanvas" width="700" height="400" style="width:100%; height:auto; max-width:700px; aspect-ratio:700/400;"></canvas>
-    <div class="game-info">
-        <span>🔤 Собрано букв: <span id="collectedCount">0</span> / <span id="totalCount">0</span></span>
-        <span>📖 Слово <span id="wordIndex">1</span> / <span id="totalWords">6</span></span>
+    <div id="gameplayArea">
+        <div class="current-word" id="currentWordDisplay">Ты ...</div>
+        <canvas id="gameCanvas" width="700" height="400" style="width:100%; height:auto; max-width:700px; aspect-ratio:700/400;"></canvas>
+        <div class="game-info">
+            <span>🔤 Собрано букв: <span id="collectedCount">0</span> / <span id="totalCount">0</span></span>
+            <span>📖 Слово <span id="wordIndex">1</span> / <span id="totalWords">5</span></span>
+        </div>
+        <div class="controls">
+            <div class="ctrl-btn" id="leftBtn">←</div>
+            <div class="ctrl-btn" id="rightBtn">→</div>
+        </div>
+        <button id="resetGameBtn" class="reset-game">⟳ Заново</button>
+        <div id="messageArea" class="win-message"></div>
     </div>
-    <div class="controls">
-        <div class="ctrl-btn" id="leftBtn">←</div>
-        <div class="ctrl-btn" id="rightBtn">→</div>
-    </div>
-    <button id="resetGameBtn" class="reset-game">⟳ Заново</button>
-    <div id="messageArea" class="win-message"></div>
+    <div id="finalScreen" style="display: none;"></div>
 </div>
 
 <script>
@@ -249,7 +278,7 @@
     }
     startHintTimer();
 
-    // ----- ИГРА СО СЛОВАМИ-ПРИЛАГАТЕЛЬНЫМИ (АДАПТИВНАЯ) -----
+    // ----- ИГРА -----
     const adjectives = ["Добрая", "Щедрая", "Честная", "Красивая", "Заботливая"];
     let currentWordIndex = 0;
     let currentWord = adjectives[currentWordIndex];
@@ -266,21 +295,10 @@
     let canvas = document.getElementById('gameCanvas');
     let ctx = canvas.getContext('2d');
     
-    // Размеры canvas будут задаваться динамически при каждом рендере
-    let canvasWidth = canvas.clientWidth;
-    let canvasHeight = canvas.clientHeight;
-    // Но для логики удобнее использовать фиксированные размеры 700x400, а координаты пересчитывать пропорционально
-    // Проще использовать фиксированную логику 700x400, а canvas масштабируется через CSS, координаты остаются как есть,
-    // но тогда управление мышкой/тачем не нужно, так как у нас кнопки. Поэтому оставим логику с фиксированными 700x400,
-    // а canvas просто растянется. Пользователь видит всё, но игра работает в тех же координатах. Это приемлемо.
-    // Однако для корректного отображения текста нужно масштабировать шрифты? Нет, они тоже будут масштабироваться.
-    // Просто установим canvas атрибуты width/height 700/400, а через CSS зададим width:100% height:auto.
-    // Так и сделаем.
-    
-    let heroX = 350; // центр по ширине 700
+    let heroX = 350;
     const HERO_WIDTH = 40;
     const HERO_HEIGHT = 30;
-    const HERO_Y = 350; // canvas.height - 50 = 350
+    const HERO_Y = 350;
     
     let leftPressed = false;
     let rightPressed = false;
@@ -300,6 +318,27 @@
         totalSpan.innerText = currentLetters.length;
         wordIndexSpan.innerText = currentWordIndex + 1;
         currentWordDisplay.innerHTML = `Ты ... ${currentWord}`;
+    }
+    
+    function showFinalScreen() {
+        // скрываем игровую область, показываем финальный экран
+        document.getElementById('gameplayArea').style.display = 'none';
+        const finalDiv = document.getElementById('finalScreen');
+        finalDiv.style.display = 'block';
+        finalDiv.innerHTML = `
+            <div class="final-screen">
+                <h2>✨ Поздравляю! ✨</h2>
+                <p>Ты лучше всех, Гюнай!</p>
+                <div class="hearts">❤️ 🌞 🌙 ❤️</div>
+                <button id="restartFromFinalBtn" class="reset-game">⟳ Пройти заново</button>
+            </div>
+        `;
+        document.getElementById('restartFromFinalBtn').addEventListener('click', () => {
+            // перезапуск игры
+            finalDiv.style.display = 'none';
+            document.getElementById('gameplayArea').style.display = 'block';
+            resetGame();
+        });
     }
     
     function resetGame() {
@@ -331,8 +370,8 @@
             updateUI();
         } else {
             gameRunning = false;
-            messageArea.innerHTML = '❤️ Ты собрала все слова! Ты лучше всех, Гюнай! ❤️';
             cancelAnimationFrame(animationId);
+            showFinalScreen();
         }
     }
     
@@ -377,8 +416,8 @@
                             nextWord();
                         } else {
                             gameRunning = false;
-                            messageArea.innerHTML = '❤️ Ты собрала все слова! Ты лучше всех, Гюнай! ❤️';
                             cancelAnimationFrame(animationId);
+                            showFinalScreen();
                             return;
                         }
                     }
