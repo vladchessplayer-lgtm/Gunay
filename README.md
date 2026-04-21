@@ -1,1 +1,462 @@
-# Gunay
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Подарок для Гюнай</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        body {
+            background-color: black;
+            color: white;
+            font-family: 'Arial', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            overflow-x: hidden;
+        }
+        .star {
+            position: absolute;
+            background-color: white;
+            border-radius: 50%;
+            opacity: 0.7;
+            animation: twinkle 3s infinite alternate;
+        }
+        @keyframes twinkle {
+            0% { opacity: 0.3; transform: scale(1);}
+            100% { opacity: 1; transform: scale(1.2);}
+        }
+        .sun-moon {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            font-size: 40px;
+            opacity: 0.6;
+            animation: float 6s infinite ease-in-out;
+        }
+        .moon-star {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 40px;
+            opacity: 0.6;
+            animation: float 8s infinite reverse;
+        }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .container {
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(8px);
+            border-radius: 40px;
+            border: 1px solid rgba(255,215,0,0.3);
+            padding: 30px;
+            width: 90%;
+            max-width: 800px;
+            z-index: 10;
+            box-shadow: 0 0 40px rgba(0,0,0,0.8);
+        }
+        input, button {
+            padding: 12px 20px;
+            font-size: 18px;
+            margin: 10px;
+            border: none;
+            border-radius: 40px;
+            outline: none;
+        }
+        input {
+            background-color: #222;
+            color: white;
+            width: 200px;
+            text-align: center;
+        }
+        button {
+            background-color: #ff9800;
+            color: black;
+            cursor: pointer;
+            transition: 0.3s;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #ffc107;
+            transform: scale(1.02);
+        }
+        .hidden {
+            display: none;
+        }
+        #hint {
+            margin-top: 20px;
+            color: #ffaa55;
+            font-size: 14px;
+        }
+        canvas {
+            background: #111;
+            border-radius: 20px;
+            display: block;
+            margin: 20px auto;
+            box-shadow: 0 0 20px rgba(255,255,255,0.2);
+            cursor: pointer;
+            touch-action: none;
+        }
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 18px;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 15px;
+        }
+        .ctrl-btn {
+            background: #333;
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+            padding: 10px 30px;
+            border-radius: 60px;
+            cursor: pointer;
+            transition: 0.2s;
+            touch-action: manipulation;
+        }
+        .ctrl-btn:active {
+            background: #ff9800;
+            transform: scale(0.95);
+        }
+        .reset-game {
+            background-color: #444;
+            margin-top: 15px;
+            padding: 8px 20px;
+        }
+        .win-message, .lose-message {
+            font-size: 24px;
+            mar
+gin-top: 20px;
+            animation: pulse 1s infinite;
+        }
+        .lose-message {
+            color: #ff6666;
+            animation: none;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); text-shadow: 0 0 10px #ffaa33; }
+            100% { transform: scale(1); }
+        }
+        .current-word {
+            font-size: 32px;
+            margin-bottom: 15px;
+            background: rgba(0,0,0,0.6);
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 60px;
+        }
+        max-width: 600px {
+            .ctrl-btn { font-size: 28px; padding: 8px 25px; }
+            canvas { width: 100%; height: auto; }
+            .current-word { font-size: 24px; }
+        }
+    </style>
+</head>
+<body>
+<div id="starsContainer"></div>
+<div class="sun-moon">🌞🌙</div>
+<div class="moon-star">🌙✨</div>
+
+<div id="passwordPage" class="container">
+    <h1>🌞 Введи пароль 🌙</h1>
+    <input type="text" id="passwordInput" placeholder="Пароль" autocomplete="off">
+    <button onclick="checkPassword()">Войти</button>
+    <div id="hint"></div>
+    <footer>Подсказка через 10 секунд</footer>
+</div>
+
+<div id="gamePage" class="container hidden">
+    <h1>✨ Собери слово ✨</h1>
+    <div class="current-word" id="currentWordDisplay">Ты ...</div>
+    <canvas id="gameCanvas" width="700" height="400"></canvas>
+    <div class="game-info">
+        <span>🔤 Собрано букв: <span id="collectedCount">0</span> / <span id="totalCount">0</span></span>
+        <span>📖 Слово <span id="wordIndex">1</span> / <span id="totalWords">6</span></span>
+    </div>
+    <div class="controls">
+        <div class="ctrl-btn" id="leftBtn">←</div>
+        <div class="ctrl-btn" id="rightBtn">→</div>
+    </div>
+    <button id="resetGameBtn" class="reset-game">⟳ Заново</button>
+    <div id="messageArea" class="win-message"></div>
+</div>
+
+<script>
+    // ----- ЗВЁЗДЫ -----
+    function createStars() {
+        const container = document.getElementById('starsContainer');
+        for (let i = 0; i < 150; i++) {
+            let star = document.createElement('div');
+            star.classList.add('star');
+            let size = Math.random() * 3 + 1;
+            star.style.width = size + 'px';
+            star.style.height = size + 'px';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.animationDelay = Math.random() * 5 + 's';
+            container.appendChild(star);
+        }
+    }
+    createStars();
+
+    // ----- ПАРОЛЬ -----
+    let hintTimer;
+    const correctPassword = "Гюнай";
+
+    function startHintTimer() {
+        hintTimer = setTimeout(() => {
+            document.getElementById('hint').innerHTML = "🌙 Подсказка: Солнце и Луна вместе — это... 🌞";
+        }, 10000);
+    }
+
+    function checkPassword() {
+        const input = document.getElementById('passwordInput').value.trim();
+        if (input === correctPassword) {
+            clearTimeout(hintTimer);
+            document.getElementById('passwordPage').classList.add('hidden');
+            document.getElementById('gamePage').classList.remove('hidden');
+            startGame();
+        } else {
+            alert("Неверный пароль, попробуй ещё раз");
+        }
+    }
+    startHintTimer();
+
+    // ----- ИГРА СО СЛОВАМИ-ПРИЛАГАТЕЛЬНЫМИ -----
+    const adjectives = ["Добрая", "Щедрая", "Честная", "Красивая", "Умная", "Солнечная"];
+    let currentWordIndex = 0;
+    let currentWord = adjectives[currentWordIndex];
+    let currentLetters = currentWord.split(''); // массив букв
+    let currentTargetIndex = 0; // индекс следующей нужной буквы
+    let collectedLetters = [];
+    let gameRunning = true;
+    let animationId = null;
+
+    // Падающие буквы
+    let fallingLetters = [];
+    let frame = 0;
+    const SPAWN_DELAY = 45;
+
+    let canvas = document.getElementById('gameCanvas');
+    let ctx = canvas.getContext('2d');
+    let heroX = canvas.width / 2;
+    const HERO_WIDTH = 40;
+    const HERO_HEIGHT = 30;
+    const HERO_Y = canvas.height - 50;
+
+    let leftPressed = false;
+    let rightPressed = false;
+    const HERO_SPEED = 7;
+
+    // UI элементы
+    let collectedSpan = document.getElementById('collectedCount');
+    let totalSpan = document.getElementById('totalCount');
+    let wordIndexSpan = document.getElementById('wordIndex');
+    let totalWordsSpan = document.getElementById('totalWords');
+    let currentWordDisplay = document.getElementById('currentWordDisplay');
+    let messageArea = document.getElementById('messageArea');
+
+    totalWordsSpan.innerText = adjectives.length;
+
+    function updateUI() {
+        collectedSpan.innerText = collectedLetters.length;
+        totalSpan.innerText = currentLetters.length;
+        wordIndexSpan.innerText = currentWordIndex + 1;
+        // Отображаем "Ты ... Добрая" (текущее слово)
+        currentWordDisplay.innerHTML = `Ты ... ${currentWord}`;
+    }
+
+    function resetGame() {
+        gameRunning = true;
+        currentWordIndex = 0;
+        currentWord = adjectives[currentWordIndex];
+        currentLetters = currentWord.split('');
+        currentTargetIndex = 0;
+        collectedLetters = [];
+        fallingLetters = [];
+        frame = 0;
+        heroX = canvas.width / 2;
+        leftPressed = false;
+        rightPressed = false;
+        updateUI();
+        messageArea.innerHTML = '';
+        if (animationId) cancelAnimationFrame(animationId);
+        animationId = requestAnimationFrame(gameLoop);
+    }
+
+    function nextWord() {
+        currentWordIndex++;
+        if (currentWordIndex < adjectives.length) {
+            currentWord = adjectives[currentWordIndex];
+            currentLetters = currentWord.split('');
+            currentTargetIndex = 0;
+            collectedLetters = [];
+            fallingLetters = [];
+            updateUI();
+            // игра продолжается, не сбрасываем анимацию
+        } else {
+            // Победа! Все слова собраны
+            gameRunning = false;
+            messageArea.innerHTML = '❤️ Ты собрала все слова! Ты лучше всех, Гюнай! ❤️';
+            cancelAnimationFrame(animationId);
+        }
+    }
+
+    function spawnLetter() {
+        if (!gameRunning) return;
+        if (currentTargetIndex >= currentLetters.length) {
+            // слово уже собрано, но мы переключимся в следующем кадре
+            return;
+        }
+        // Падают только буквы, которые могут быть нужны (текущая или последующие)
+        let remainingLetters = currentLetters.slice(currentTargetIndex);
+        if (remainingLetters.length === 0) return;
+        let randomLetter = remainingLetters[Math.floor(Math.random() * remainingLetters.length)];
+        let x = Math.random() * (canvas.width - 40) + 20;
+        fallingLetters.push({
+            letter: randomLetter,
+            x: x,
+            y: 0,
+            radius: 20
+        });
+    }
+
+    function gameLoop() {
+        if (!gameRunning) return;
+
+        frame++;
+        if (frame % SPAWN_DELAY === 0) {
+            spawnLetter();
+        }
+
+        // Управление
+        if (leftPressed && heroX > 10) heroX -= HERO_SPEED;
+        if (rightPressed && heroX < canvas.width - HERO_WIDTH - 10) heroX += HERO_SPEED;
+
+        // Проверка столкновений
+        for (let i = 0; i < fallingLetters.length; i++) {
+            let l = fallingLetters[i];
+            l.y += 2.5;
+            if (l.y + l.radius >= HERO_Y && l.y - l.radius <= HERO_Y + HERO_HEIGHT &&
+                l.x + l.radius >= heroX && l.x - l.radius <= heroX + HERO_WIDTH) {
+                // Поймали букву
+                if (l.letter === currentLetters[currentTargetIndex]) {
+                    // Правильная буква
+                    collectedLetters.push(l.letter);
+                    currentTargetIndex++;
+                    updateUI();
+                    fallingLetters.splice(i,1);
+                    i--;
+                    if (currentTargetIndex === currentLetters.length) {
+// Слово собрано полностью
+                        if (currentWordIndex + 1 < adjectives.length) {
+                            nextWord();
+                        } else {
+                            // последнее слово собрано
+                            gameRunning = false;
+                            messageArea.innerHTML = '❤️ Ты собрала все слова! Ты удивительная, Гюнай! 🌞🌙 ❤️';
+                            cancelAnimationFrame(animationId);
+                            return;
+                        }
+                    }
+                } else {
+                    // Неправильная буква — проигрыш
+                    gameRunning = false;
+                    messageArea.innerHTML = '❌ Игра окончена! Ты ошиблась. Начни заново. ❌';
+                    cancelAnimationFrame(animationId);
+                    return;
+                }
+            } else if (l.y + l.radius > canvas.height) {
+                // Упала вниз — просто удаляем
+                fallingLetters.splice(i,1);
+                i--;
+            }
+        }
+
+        draw();
+        animationId = requestAnimationFrame(gameLoop);
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#111';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Герой
+        ctx.fillStyle = '#ffaa33';
+        ctx.fillRect(heroX, HERO_Y, HERO_WIDTH, HERO_HEIGHT);
+        ctx.fillStyle = 'black';
+        ctx.font = '20px Arial';
+        ctx.fillText('😊', heroX+10, HERO_Y+22);
+        
+        // Падающие буквы
+        for (let l of fallingLetters) {
+            ctx.fillStyle = '#ffcc66';
+            ctx.beginPath();
+            ctx.arc(l.x, l.y, l.radius, 0, 2*Math.PI);
+            ctx.fill();
+            ctx.fillStyle = 'black';
+            ctx.font = 'bold 22px monospace';
+            ctx.fillText(l.letter, l.x-10, l.y+8);
+        }
+        
+        // Собранные буквы текущего слова
+        ctx.fillStyle = 'white';
+        ctx.font = '24px monospace';
+        ctx.fillText('Собрано: ' + collectedLetters.join(''), 20, 40);
+        ctx.fillStyle = '#aaa';
+        ctx.fillText('Нужно: ' + currentWord, 20, 80);
+        
+        ctx.fillStyle = '#888';
+        ctx.font = '14px Arial';
+        ctx.fillText('← →  или кнопки', canvas.width-150, canvas.height-20);
+    }
+
+    // Управление
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') leftPressed = true;
+        if (e.key === 'ArrowRight') rightPressed = true;
+    });
+    document.addEventListener('keyup', (e) => {
+        if (e.key === 'ArrowLeft') leftPressed = false;
+        if (e.key === 'ArrowRight') rightPressed = false;
+    });
+
+    document.getElementById('leftBtn').addEventListener('touchstart', (e) => { e.preventDefault(); leftPressed = true; });
+    document.getElementById('leftBtn').addEventListener('touchend', (e) => { e.preventDefault(); leftPressed = false; });
+    document.getElementById('rightBtn').addEventListener('touchstart', (e) => { e.preventDefault(); rightPressed = true; });
+    document.getElementById('rightBtn').addEventListener('touchend', (e) => { e.preventDefault(); rightPressed = false; });
+    document.getElementById('leftBtn').addEventListener('mousedown', () => leftPressed = true);
+    document.getElementById('leftBtn').addEventListener('mouseup', () => leftPressed = false);
+    document.getElementById('rightBtn').addEventListener('mousedown', () => rightPressed = true);
+    document.getElementById('rightBtn').addEventListener('mouseup', () => rightPressed = false);
+
+    document.getElementById('resetGameBtn').addEventListener('click', () => {
+        if (animationId) cancelAnimationFrame(animationId);
+        resetGame();
+    });
+
+    function startGame() {
+        resetGame();
+    }
+</script>
+</body>
+</html>
