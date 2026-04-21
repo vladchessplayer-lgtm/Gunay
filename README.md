@@ -377,7 +377,7 @@
                             nextWord();
                         } else {
                             gameRunning = false;
-                            messageArea.innerHTML = '❤️ Ты собрала все слова! Ты удивительная, Гюнай! 🌞🌙 ❤️';
+                            messageArea.innerHTML = '❤️ Ты собрала все слова! Ты лучше всех, Гюнай! ❤️';
                             cancelAnimationFrame(animationId);
                             return;
                         }
