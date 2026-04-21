@@ -25,16 +25,19 @@
             overflow-x: hidden;
             padding: 10px;
         }
+        /* Звёзды - уменьшено количество и упрощена анимация */
         .star {
             position: absolute;
             background-color: white;
             border-radius: 50%;
-            opacity: 0.7;
-            animation: twinkle 3s infinite alternate;
+            opacity: 0.8;
+            width: 2px;
+            height: 2px;
+            animation: twinkle 4s infinite alternate;
         }
         @keyframes twinkle {
-            0% { opacity: 0.3; transform: scale(1);}
-            100% { opacity: 1; transform: scale(1.2);}
+            0% { opacity: 0.4; transform: scale(1);}
+            100% { opacity: 1; transform: scale(1.5);}
         }
         .sun-moon {
             position: absolute;
@@ -69,6 +72,10 @@
             max-width: 800px;
             z-index: 10;
             box-shadow: 0 0 40px rgba(0,0,0,0.8);
+        }
+        .container h1 {
+            white-space: nowrap;
+            font-size: 28px;
         }
         input, button {
             padding: 12px 20px;
@@ -149,10 +156,6 @@
             padding: 12px 24px;
             font-size: 18px;
         }
-        .win-message, .lose-message {
-            font-size: 20px;
-            margin-top: 20px;
-        }
         .current-word {
             font-size: 28px;
             margin-bottom: 10px;
@@ -160,8 +163,8 @@
             display: inline-block;
             padding: 10px 20px;
             border-radius: 60px;
+            white-space: nowrap;
         }
-        /* Финальный экран (победа/поражение) */
         .final-screen {
             background: rgba(0,0,0,0.95);
             border-radius: 60px;
@@ -193,8 +196,12 @@
             color: #ff8888;
         }
         @media (max-width: 600px) {
+            .container h1 {
+                font-size: 20px;
+                white-space: nowrap;
+            }
             .ctrl-btn { font-size: 36px; padding: 12px 20px; min-width: 80px; }
-            .current-word { font-size: 24px; }
+            .current-word { font-size: 20px; white-space: nowrap; }
             .game-info { font-size: 14px; }
             .container { padding: 15px; }
             .final-screen h2 { font-size: 28px; }
@@ -235,10 +242,10 @@
 </div>
 
 <script>
-    // ЗВЁЗДЫ
+    // ЗВЁЗДЫ - уменьшено количество до 80, для производительности
     function createStars() {
         const container = document.getElementById('starsContainer');
-        for (let i = 0; i < 150; i++) {
+        for (let i = 0; i < 80; i++) {
             let star = document.createElement('div');
             star.classList.add('star');
             let size = Math.random() * 3 + 1;
@@ -275,7 +282,7 @@
     }
     startHintTimer();
 
-    // ИГРА С АДАПТАЦИЕЙ ПОД ТЕЛЕФОН
+    // ИГРА
     const adjectives = ["Добрая", "Щедрая", "Честная", "Красивая", "Заботливая"];
     let currentWordIndex = 0;
     let currentWord = adjectives[currentWordIndex];
@@ -286,29 +293,16 @@
     let animationId = null;
     let fallingLetters = [];
     let frame = 0;
-    const SPAWN_DELAY = 45;
+    const SPAWN_DELAY = 40; // чуть меньше для динамики
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
-    // Динамические размеры canvas под экран
-    let canvasWidth = 0;
-    let canvasHeight = 0;
-    // Параметры героя (будут пересчитываться при resize)
-    let heroX = 0;
-    let heroWidth = 0;
-    let heroHeight = 0;
-    let heroY = 0;
-    let heroSpeed = 0;
-    // Размер букв и шаров
-    let ballRadius = 0;
-    let letterFontSize = 0;
-    let infoFontSize = 0;
+    let canvasWidth = 0, canvasHeight = 0;
+    let heroX = 0, heroWidth = 0, heroHeight = 0, heroY = 0, heroSpeed = 0;
+    let ballRadius = 0, letterFontSize = 0, infoFontSize = 0;
+    let leftPressed = false, rightPressed = false;
 
-    let leftPressed = false;
-    let rightPressed = false;
-
-    // UI элементы
     const collectedSpan = document.getElementById('collectedCount');
     const totalSpan = document.getElementById('totalCount');
     const wordIndexSpan = document.getElementById('wordIndex');
@@ -324,34 +318,26 @@
         currentWordDisplay.innerHTML = `Ты ... ${currentWord}`;
     }
 
-    // Пересчёт размеров canvas и игровых объектов
     function resizeCanvas() {
-        // Получаем доступную ширину контейнера
-        const container = canvas.parentElement;
         const maxWidth = Math.min(window.innerWidth - 40, 800);
         canvas.width = maxWidth;
-        canvas.height = maxWidth * 0.6; // соотношение 0.6 (как 400/700)
+        canvas.height = maxWidth * 0.6;
         canvasWidth = canvas.width;
         canvasHeight = canvas.height;
 
-        // Размер героя: ширина 8% от ширины, высота 10% от высоты
         heroWidth = canvasWidth * 0.08;
         heroHeight = canvasHeight * 0.1;
         heroY = canvasHeight - heroHeight - 10;
         heroSpeed = canvasWidth * 0.015;
-        // Начальная позиция героя
         if (heroX === 0) heroX = canvasWidth / 2 - heroWidth/2;
-        // Ограничения
         if (heroX < 10) heroX = 10;
         if (heroX + heroWidth > canvasWidth - 10) heroX = canvasWidth - heroWidth - 10;
 
-        // Размер шаров: 5% от ширины
         ballRadius = canvasWidth * 0.045;
         letterFontSize = ballRadius * 0.9;
         infoFontSize = canvasWidth * 0.04;
     }
 
-    // Показать экран проигрыша
     function showLoseScreen() {
         document.getElementById('gameplayArea').style.display = 'none';
         const finalDiv = document.getElementById('finalScreen');
@@ -371,7 +357,6 @@
         });
     }
 
-    // Показать экран победы
     function showWinScreen() {
         document.getElementById('gameplayArea').style.display = 'none';
         const finalDiv = document.getElementById('finalScreen');
@@ -432,28 +417,20 @@
         if (remaining.length === 0) return;
         let randomLetter = remaining[Math.floor(Math.random() * remaining.length)];
         let x = Math.random() * (canvasWidth - 2 * ballRadius) + ballRadius;
-        fallingLetters.push({
-            letter: randomLetter,
-            x: x,
-            y: 0,
-            radius: ballRadius
-        });
+        fallingLetters.push({ letter: randomLetter, x: x, y: 0, radius: ballRadius });
     }
 
     function gameLoop() {
         if (!gameRunning) return;
         frame++;
-        if (frame % SPAWN_DELAY === 0) {
-            spawnLetter();
-        }
+        if (frame % SPAWN_DELAY === 0) spawnLetter();
 
         if (leftPressed && heroX > 10) heroX -= heroSpeed;
         if (rightPressed && heroX < canvasWidth - heroWidth - 10) heroX += heroSpeed;
 
         for (let i = 0; i < fallingLetters.length; i++) {
             let l = fallingLetters[i];
-            l.y += canvasHeight * 0.008; // скорость падения относительно высоты
-            // Столкновение с героем
+            l.y += canvasHeight * 0.008;
             if (l.y + l.radius >= heroY && l.y - l.radius <= heroY + heroHeight &&
                 l.x + l.radius >= heroX && l.x - l.radius <= heroX + heroWidth) {
                 if (l.letter === currentLetters[currentTargetIndex]) {
@@ -463,9 +440,8 @@
                     fallingLetters.splice(i,1);
                     i--;
                     if (currentTargetIndex === currentLetters.length) {
-                        if (currentWordIndex + 1 < adjectives.length) {
-                            nextWord();
-                        } else {
+                        if (currentWordIndex + 1 < adjectives.length) nextWord();
+                        else {
                             gameRunning = false;
                             cancelAnimationFrame(animationId);
                             showWinScreen();
@@ -492,15 +468,11 @@
         ctx.clearRect(0, 0, canvasWidth, canvasHeight);
         ctx.fillStyle = '#111';
         ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-
-        // Герой (смайлик)
         ctx.fillStyle = '#ffaa33';
         ctx.fillRect(heroX, heroY, heroWidth, heroHeight);
         ctx.fillStyle = 'black';
         ctx.font = `${heroHeight * 0.6}px Arial`;
         ctx.fillText('😊', heroX + heroWidth*0.25, heroY + heroHeight*0.7);
-
-        // Падающие буквы
         for (let l of fallingLetters) {
             ctx.fillStyle = '#ffcc66';
             ctx.beginPath();
@@ -510,8 +482,6 @@
             ctx.font = `bold ${letterFontSize}px monospace`;
             ctx.fillText(l.letter, l.x - l.radius*0.45, l.y + l.radius*0.35);
         }
-
-        // Текстовая информация
         ctx.fillStyle = 'white';
         ctx.font = `${infoFontSize}px monospace`;
         ctx.fillText('Собрано: ' + collectedLetters.join(''), 10, infoFontSize + 5);
@@ -522,26 +492,10 @@
         ctx.fillText('← →  или кнопки', canvasWidth - infoFontSize*8, canvasHeight - 10);
     }
 
-    // Управление
-    window.addEventListener('resize', () => {
-        if (gameRunning) {
-            resizeCanvas();
-            // Корректировка позиции героя при изменении размера
-            heroX = Math.min(Math.max(heroX, 10), canvasWidth - heroWidth - 10);
-        }
-    });
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowLeft') leftPressed = true;
-        if (e.key === 'ArrowRight') rightPressed = true;
-    });
-    document.addEventListener('keyup', (e) => {
-        if (e.key === 'ArrowLeft') leftPressed = false;
-        if (e.key === 'ArrowRight') rightPressed = false;
-    });
-
-    const leftBtn = document.getElementById('leftBtn');
-    const rightBtn = document.getElementById('rightBtn');
+    window.addEventListener('resize', () => { if (gameRunning) { resizeCanvas(); heroX = Math.min(Math.max(heroX, 10), canvasWidth - heroWidth - 10); } });
+    document.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') leftPressed = true; if (e.key === 'ArrowRight') rightPressed = true; });
+    document.addEventListener('keyup', (e) => { if (e.key === 'ArrowLeft') leftPressed = false; if (e.key === 'ArrowRight') rightPressed = false; });
+    const leftBtn = document.getElementById('leftBtn'), rightBtn = document.getElementById('rightBtn');
     leftBtn.addEventListener('touchstart', (e) => { e.preventDefault(); leftPressed = true; });
     leftBtn.addEventListener('touchend', (e) => { e.preventDefault(); leftPressed = false; });
     rightBtn.addEventListener('touchstart', (e) => { e.preventDefault(); rightPressed = true; });
@@ -550,19 +504,13 @@
     leftBtn.addEventListener('mouseup', () => leftPressed = false);
     rightBtn.addEventListener('mousedown', () => rightPressed = true);
     rightBtn.addEventListener('mouseup', () => rightPressed = false);
-
     document.getElementById('resetGameBtn').addEventListener('click', () => {
         if (animationId) cancelAnimationFrame(animationId);
-        // Скрываем финальный экран, если он был
         document.getElementById('finalScreen').style.display = 'none';
         document.getElementById('gameplayArea').style.display = 'block';
         resetGame();
     });
-
-    function startGame() {
-        resizeCanvas();
-        resetGame();
-    }
+    function startGame() { resizeCanvas(); resetGame(); }
 </script>
 </body>
 </html>
